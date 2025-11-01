@@ -1,0 +1,101 @@
+---
+title: 'What I Learned Building a Sentiment Analysis Model'
+description: 'Lessons from building a financial sentiment analysis system—from fine-tuning transformers to understanding correlation versus causation.'
+date: '2023-10-28'
+tags: ['Learning', 'Machine Learning', 'NLP', 'Finance']
+published: true
+---
+
+## The Question That Started It All
+
+Can we predict stock market movements from news sentiment? It's a question that fascinates traders, data scientists, and skeptics alike. I wanted to find out, so I built a [sentiment analysis system](/projects/sentiment-analysis-model) that processes financial news and correlates sentiment with price movements.
+
+Spoiler: the answer is "yes, but it's complicated." The real learning wasn't the answer—it was everything I discovered along the way about NLP, statistics, and the intersection of data science and finance.
+
+## Why Generic Sentiment Models Fail
+
+My first attempt used a pre-trained sentiment model from Hugging Face. It worked on generic text but failed hilariously on financial content. Examples:
+
+- "The company **beat** expectations" → classified as **negative** (beat = violence)
+- "Shares **fell** to a **high**" → confused (fell = negative, high = positive)
+- "Aggressive expansion into new markets" → **negative** (aggressive = bad)
+
+Generic models miss domain nuance. Financial language is specialized—"bearish" isn't about animals, "underwater" isn't about swimming, and "killing it" is positive. I needed a model that understood financial context.
+
+## Fine-Tuning on Financial Data
+
+I discovered FinBERT, a model pre-trained on financial text. Better, but still not perfect for my use case. So I fine-tuned it on financial news headlines with sentiment labels.
+
+**Data collection** was tedious but crucial. I scraped financial news sites (carefully, respecting robots.txt), extracted headlines, and manually labeled 1,000 examples as positive, negative, or neutral. Yes, manually—quality over quantity. Those 1,000 labeled examples became my gold standard.
+
+**The fine-tuning process** taught me practical ML engineering. I learned about learning rates (too high and training diverges, too low and it takes forever), batch sizes (limited by GPU memory), and epochs (too many and you overfit). I used early stopping—monitor validation loss and stop when it starts increasing.
+
+The breakthrough came from understanding **transfer learning deeply**. The pre-trained model already understood language, syntax, and some financial concepts. Fine-tuning taught it *my specific task*—classifying *these kinds* of headlines for *this purpose*. I wasn't training from scratch; I was specializing existing knowledge.
+
+## The Correlation Adventure
+
+With sentiment scores in hand, I eagerly correlated them with stock prices. First results: weak correlation, almost random. Disappointing! But rather than giving up, I got curious: *why* is the correlation weak?
+
+**Time lag matters**. News published Monday might affect prices Tuesday. I tested different lag windows: same-day, 1-day lag, 2-day lag, 3-day lag. The strongest correlation appeared at 1-2 day lags—markets don't react instantly to news.
+
+**Magnitude matters**. A slightly negative article has minimal impact. A very negative article moves markets. I needed to account for sentiment *strength*, not just direction. Plotting sentiment magnitude vs. price change revealed a non-linear relationship—strong sentiment moves markets, weak sentiment doesn't.
+
+**Sector matters**. Tech stocks responded strongly to sentiment; utilities barely moved. Volatile sectors amplify news impact; stable sectors ignore it. Analyzing sector-by-sector revealed patterns invisible in aggregate data.
+
+**The market isn't magic**—it's collective human decision-making informed by information. Sentiment analysis is measuring information flow. Understanding this reframed my thinking from "prediction" to "measurement of one factor among many."
+
+## Statistical Rigor and Skepticism
+
+Correlation doesn't imply causation—we've all heard this, but living it is different. I found correlations everywhere: sentiment vs. price, sentiment vs. volume, price vs. weather (seriously, sunny days showed slight positive correlation). Many were spurious.
+
+I learned to **test hypotheses rigorously**. Bonferroni correction for multiple comparisons—if you test 20 hypotheses, one will appear significant by chance. I needed stronger evidence.
+
+**Granger causality tests** taught me to ask: does sentiment *predict* future prices, or do prices predict future sentiment? Turns out, it's bidirectional. Bad news causes price drops, but price drops also cause news to focus on negatives. The relationship is feedback loop, not simple cause-and-effect.
+
+**Out-of-sample testing** kept me honest. My model might work on 2020-2022 data used for tuning, but does it work on 2023 data? I split time-series data carefully—always test on future unseen data, never past data. Real predictive power only shows on unseen futures.
+
+## Python Skills That Stuck
+
+This project solidified my Python skills:
+
+**Pandas mastery**. Time-series data required groupby operations, rolling windows, and careful date alignment. Merging sentiment data with price data by date and ticker—sounds simple, gets tricky with missing data and holidays. I learned to handle edge cases gracefully.
+
+**Visualization with matplotlib/seaborn**. Scatter plots revealed relationships. Time-series plots showed trends. Heatmaps exposed correlation patterns. Good visualization made insights obvious that were hidden in raw numbers.
+
+**Scikit-learn's API**. Transformers for preprocessing, pipelines for workflow, cross-validation for robust evaluation. The consistent API made experimentation fast—swap one model for another with minimal code changes.
+
+**Working with APIs**. Fetching financial data from multiple sources, handling rate limits, managing API keys, caching responses. Production data science involves a lot of data plumbing—unglamorous but essential.
+
+## What Surprised Me Most
+
+**Negative sentiment is more predictive than positive sentiment**. Bad news causes sharp reactions; good news gets priced in gradually. The asymmetry was striking and consistent.
+
+**Sentiment volatility matters as much as sentiment level**. Rapid swings in sentiment (positive to negative within hours) indicated market uncertainty and correlated with increased price volatility. I stumbled on this exploring noise patterns.
+
+**Simple models plus good data beat complex models with bad data**. I tried fancy ensemble methods, neural networks, and gradient boosting. A simpler logistic regression with carefully engineered features often performed as well. The lesson: **data quality dominates algorithm choice**.
+
+## Humility and Uncertainty
+
+Financial markets humbled me. I learned to embrace uncertainty rather than overfit to noise. My model has modest predictive power—better than random, far from perfect. That's honest. Claiming to "predict the market" is hubris; claiming to "measure one signal among many" is science.
+
+I learned to **quantify uncertainty**. Report confidence intervals, not just point predictions. Show where the model is confident and where it's guessing. Humility makes better data scientists.
+
+## Where This Leads
+
+This project sparked deeper interest in NLP and finance. I want to explore:
+
+- **Multimodal sentiment**: analyzing earnings call transcripts, not just text—voice tone and pauses convey sentiment.
+- **Entity-level sentiment**: not just overall article sentiment, but sentiment toward specific companies or executives.
+- **Causal inference**: moving beyond correlation to understand mechanisms—does sentiment cause trading, or does trading cause sentiment shifts?
+
+## Reflections
+
+Building this system taught me that **data science is iterative**. My first model was naive. Each iteration taught me something—about NLP, statistics, finance, and humility. The failures were as informative as successes.
+
+It reinforced that **domain knowledge matters**. Understanding finance improved my model more than algorithm tweaks. Talk to domain experts. Read industry content. Context beats cleverness.
+
+Most importantly, it showed that **curiosity drives learning**. I asked a question, built something to explore it, learned from mistakes, and iterated. That cycle—question, build, learn, repeat—is the essence of growth.
+
+If you're interested in NLP or finance, build something. Start simple. Ask questions. Embrace uncertainty. The learning journey is the real reward.
+
+[View the project](/projects/sentiment-analysis-model) for technical details and implementation.

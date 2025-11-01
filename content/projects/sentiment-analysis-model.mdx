@@ -1,0 +1,46 @@
+---
+title: 'Sentiment Analysis Model'
+description: 'A Python-based sentiment analysis system deployed on AWS that correlates financial news sentiment with market movements.'
+date: '2023-10-20'
+tags: ['Python', 'AWS', 'Machine Learning', 'NLP', 'Finance']
+featured: false
+published: true
+repo: 'https://github.com/yourusername/sentiment-analysis'
+thumbnail: '/images/sentiment-analysis-model.png'
+---
+
+## Overview
+
+This sentiment analysis system processes financial news articles to gauge market sentiment and correlate it with stock price movements. Built with Python and deployed on AWS, it combines natural language processing with statistical analysis to uncover relationships between news sentiment and market behavior.
+
+## Motivation
+
+Financial markets react to news, but the relationship isn't always straightforward. I wanted to build a system that could quantify sentiment from news articles and explore whether sentiment scores correlate with market movements. This project bridged my interests in machine learning, finance, and data engineering.
+
+## System Architecture
+
+The pipeline consists of several stages working in concert:
+
+**Data Collection** pulls financial news from multiple sources using APIs and web scraping. Articles are filtered by relevance and timestamp, then stored in S3 for processing. The system handles deduplication and maintains a growing corpus of financial content.
+
+**Sentiment Analysis** uses a fine-tuned transformer model specifically trained on financial text. Generic sentiment models often miss domain-specific nuances—"beat" is positive in "beat earnings estimates" but negative elsewhere. The model outputs sentiment scores on a continuous scale from -1 (negative) to +1 (positive).
+
+**Correlation Engine** aligns sentiment scores with historical price data, accounting for lag effects and volatility. Statistical methods including Pearson correlation, Granger causality tests, and rolling window analysis reveal how sentiment predicts price movements across different timeframes.
+
+**AWS Deployment** leverages Lambda for processing, S3 for storage, and CloudWatch for monitoring. The system runs daily, processing new articles and updating correlation metrics. Simple visualizations show sentiment trends alongside price charts.
+
+## Key Findings
+
+The analysis revealed that sentiment does correlate with market movements, but the relationship is complex and time-dependent. Strong negative sentiment often precedes short-term price drops, while the relationship with positive sentiment is weaker—markets already price in good news more efficiently.
+
+Sector-specific patterns emerged: tech stocks respond more strongly to sentiment shifts than utilities. Sentiment volatility (rapid swings) proved as informative as absolute levels. The strongest correlations appeared in the 1-3 day window after news publication.
+
+## Technical Growth
+
+This project expanded my Python skills significantly. I learned to work with pandas for time-series analysis, scikit-learn for statistical tests, and transformers for NLP. Understanding how to fine-tune pre-trained models on domain-specific data was a breakthrough moment.
+
+AWS deployment taught me about serverless architectures and cost optimization. Lambda's ephemeral nature required rethinking state management. I learned to batch operations efficiently and use S3 intelligently for intermediate results.
+
+The correlation analysis demanded statistical rigor. I learned about spurious correlations, the importance of testing multiple hypotheses carefully, and how to account for autocorrelation in time-series data. This project made me a more thoughtful data scientist.
+
+[Read the blog post](/blog/sentiment-analysis-model) about the insights from this project.

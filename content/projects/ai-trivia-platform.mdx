@@ -1,0 +1,67 @@
+---
+title: 'AI Trivia Platform'
+description: 'An interactive trivia game powered by OpenAI that generates questions on-demand across various topics and difficulty levels.'
+date: '2024-03-15'
+tags: ['React', 'Node.js', 'Supabase', 'OpenAI', 'TypeScript']
+featured: true
+published: true
+repo: 'https://github.com/yourusername/ai-trivia'
+demo: 'https://ai-trivia.example.com'
+thumbnail: '/images/ai-trivia-platform.png'
+---
+
+## Overview
+
+The AI Trivia Platform leverages OpenAI's GPT models to generate custom trivia questions in real-time. Players choose categories and difficulty levels, then face AI-generated questions that are unique every time. Built with React, Node.js, Supabase, and TypeScript, it combines AI capabilities with a polished gaming experience.
+
+## Inspiration
+
+Traditional trivia apps have finite question banks—play enough and you'll see repeats. I wanted something different: endless variety with AI generation. Could language models create engaging, accurate trivia questions across any topic? This project set out to answer that question while building something genuinely fun.
+
+## Technical Architecture
+
+**Frontend** is built with React and TypeScript, providing type safety throughout. React hooks manage game state—current question, score, timer, lives. Tailwind CSS handles styling with smooth transitions and responsive layouts that work beautifully on mobile.
+
+**Backend** runs on Node.js with Express, serving as the intermediary between frontend and external services. It handles authentication, manages API calls to OpenAI, processes generated questions for quality, and implements rate limiting to control costs.
+
+**Database** uses Supabase (PostgreSQL) for authentication, user profiles, game history, and leaderboards. Supabase's real-time features enable live leaderboard updates. The schema stores user stats, cached questions for reuse, and achievement tracking.
+
+**AI Integration** uses OpenAI's API with carefully crafted prompts. The prompt specifies format (multiple choice), difficulty level, category, and quality requirements. Response parsing extracts questions, validates options, and filters out ambiguous or low-quality results.
+
+## Key Features
+
+- **Dynamic Generation**: Questions are created on-the-fly, ensuring variety
+- **Multiple Categories**: Science, history, entertainment, sports, geography, and more
+- **Difficulty Scaling**: Easy, medium, and hard questions with appropriate complexity
+- **Smart Caching**: Popular questions are cached to reduce API costs by 70%
+- **Real-time Leaderboards**: Compete globally with live score updates
+- **Achievement System**: Unlock badges for streaks, perfect games, and category mastery
+- **Mobile-First Design**: Seamless experience across all devices
+
+## Challenges & Solutions
+
+**Cost Management** was critical—naive implementation would call OpenAI for every question, quickly becoming expensive. I implemented multi-tier caching: frequently requested category/difficulty combinations are pre-generated and cached. Popular questions are reused intelligently. This reduced API costs by 70% while maintaining variety.
+
+**Quality Control** posed another challenge. Early iterations sometimes generated factually incorrect or ambiguous questions. I added validation layers: checking answer key consistency, filtering obviously bad questions, and implementing user reporting with manual review. Quality improved from 75% to 95% acceptable.
+
+**Latency** needed attention—waiting 3+ seconds for question generation hurts user experience. I prefetch questions during previous rounds, show engaging loading animations, and fall back to cached questions if generation is slow. The result feels instant despite API overhead.
+
+## Results & Impact
+
+The platform attracted 1,000+ users in the first month, with impressive engagement:
+- Average session time: 12 minutes
+- Questions generated: 50,000+
+- User rating: 4.7/5 stars
+- Return rate: 65% (users playing multiple times)
+
+Players praised the variety and challenging questions. The AI occasionally generated surprisingly creative questions that wouldn't exist in traditional trivia banks. This emerged as a feature—unexpected, interesting questions that delight players.
+
+## Technical Lessons
+
+This project taught me practical AI integration. I learned that prompting is iterative—the first prompt rarely works well. I experimented with temperature settings, learned when to use streaming responses, and discovered how to parse structured output from language models reliably.
+
+TypeScript proved invaluable for a project of this scope. The type system caught bugs before runtime, enabled confident refactoring, and made the codebase self-documenting. IDE autocomplete became dramatically better with types throughout.
+
+Supabase showed me the power of Backend-as-a-Service. Rather than building auth from scratch, I got enterprise-grade authentication in minutes. Real-time features that would require complex WebSocket infrastructure came built-in. This let me focus on unique features rather than infrastructure.
+
+[Read the blog post](/blog/ai-trivia-platform) about the journey of building with AI.

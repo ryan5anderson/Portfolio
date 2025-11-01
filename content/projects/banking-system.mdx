@@ -1,0 +1,56 @@
+---
+title: 'Banking System'
+description: 'An object-oriented banking system built with JavaScript using test-driven development and clean architecture principles.'
+date: '2023-06-10'
+tags: ['JavaScript', 'OOP', 'TDD', 'Architecture', 'Testing']
+featured: false
+published: true
+repo: 'https://github.com/yourusername/banking-system'
+thumbnail: '/images/banking-system.png'
+---
+
+## Overview
+
+This banking system demonstrates object-oriented programming principles and test-driven development in JavaScript. It implements core banking operations—account management, transactions, transfers, and statement generation—with a focus on clean code, maintainability, and comprehensive test coverage.
+
+## Project Goals
+
+I built this system to deepen my understanding of software architecture fundamentals. Rather than reaching for frameworks immediately, I wanted to understand how to structure complex applications using OOP principles. The constraint of test-driven development forced me to think about design before implementation.
+
+## Architecture & Design
+
+The system follows SOLID principles and uses a layered architecture:
+
+**Domain Layer** contains the core business logic. The `Account` class handles balances, deposits, and withdrawals with validation. The `Transaction` class is immutable, recording timestamp, type, and amount. The `Bank` class manages multiple accounts and facilitates transfers while ensuring consistency.
+
+**Service Layer** provides higher-level operations. The `AccountService` handles account creation and lookup, while `TransactionService` processes operations and maintains transaction history. Services coordinate between domain objects and ensure business rules are enforced.
+
+**Repository Layer** abstracts data persistence. In-memory implementations facilitate testing, while the interface allows swapping in database adapters without changing business logic. This separation makes the codebase flexible and testable.
+
+**Test Suite** drives development. Every feature begins with failing tests that specify behavior. Tests document expected functionality and catch regressions. The comprehensive suite covers happy paths, edge cases, and error conditions.
+
+## Test-Driven Development Process
+
+TDD transformed how I approach problems. Writing tests first forces you to think about interfaces and behavior before implementation details. It's uncomfortable at first—you're writing code that calls functions that don't exist yet—but it leads to better design.
+
+I learned to write tests at multiple levels: unit tests for individual classes, integration tests for service interactions, and end-to-end tests for complete workflows. Each level provides different value and catches different categories of bugs.
+
+The red-green-refactor cycle became natural: write a failing test (red), implement just enough code to pass (green), then refactor for clarity (refactor). This rhythm keeps the codebase clean and prevents over-engineering.
+
+## Object-Oriented Insights
+
+Working with JavaScript's prototypal inheritance alongside class syntax taught me the difference between classical OOP and JavaScript's approach. I learned when to use composition over inheritance—favor "has-a" over "is-a" relationships for flexibility.
+
+Encapsulation became concrete: keeping data private and exposing behavior through methods. Abstraction meant hiding implementation details behind clean interfaces. Polymorphism enabled treating different account types uniformly.
+
+I discovered design patterns organically—the factory pattern for account creation, strategy pattern for fee calculation, observer pattern for transaction notifications. These patterns emerged from solving real problems, not from applying patterns for their own sake.
+
+## Lessons Learned
+
+This project taught me that good software design isn't about clever code—it's about maintainability. Six months later, I could still understand and modify the codebase easily. Tests gave me confidence to refactor fearlessly.
+
+TDD seems slower initially but saves time overall. Finding bugs during testing is infinitely cheaper than debugging production issues. The documentation value of tests shouldn't be underestimated—they show exactly how the system should behave.
+
+Clean architecture pays dividends in flexibility. When I wanted to add new account types, the layered structure made it straightforward. When requirements changed, isolated changes rippled minimally through the codebase.
+
+[Read the blog post](/blog/banking-system) about my TDD journey with this project.

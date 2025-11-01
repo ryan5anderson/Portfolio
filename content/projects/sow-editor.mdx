@@ -1,0 +1,57 @@
+---
+title: 'SOW Editor'
+description: 'A MERN stack application for creating and managing Statements of Work with integrated CPQ price calculation.'
+date: '2023-08-25'
+tags: ['React', 'Node.js', 'MongoDB', 'Express', 'MERN']
+featured: false
+published: true
+repo: 'https://github.com/yourusername/sow-editor'
+demo: 'https://sow-editor.example.com'
+thumbnail: '/images/sow-editor.png'
+---
+
+## Overview
+
+The SOW Editor streamlines the creation of Statements of Work for professional services engagements. Built with the MERN stack (MongoDB, Express, React, Node.js), it features a rich text editor, template system, and integrated Configure-Price-Quote (CPQ) calculator that automatically computes project costs based on resource allocation and rates.
+
+## The Business Problem
+
+Creating SOWs manually is tedious and error-prone. Sales teams spend hours formatting documents, calculating costs, and ensuring consistency. Pricing mistakes cost money—underquote and you lose margin, overquote and you lose deals. This application brings automation and accuracy to the SOW process.
+
+## Key Features
+
+**Rich Text Editor** provides a familiar interface for document creation. Based on Draft.js, it supports formatting, lists, tables, and inline variables that populate dynamically. Users can bold critical terms, add bullet points for deliverables, and insert tables for milestone schedules.
+
+**Template Library** stores reusable SOW structures. Templates define sections (overview, scope, deliverables, pricing), placeholder variables, and default content. Teams can start with proven structures rather than blank pages, ensuring consistency and completeness.
+
+**CPQ Calculator** is the system's power feature. Users define project phases, assign resources (developers, designers, PMs), set hourly rates, and specify hours. The calculator computes phase costs, applies discounts, adds contingencies, and generates the total. Real-time updates show pricing as you adjust allocations.
+
+**Version Control** tracks SOW revisions. Changes are saved with timestamps and user attribution. Teams can compare versions, roll back changes, and understand document evolution. This audit trail proves invaluable during negotiations.
+
+**Collaboration** supports multiple users editing simultaneously. MongoDB's document model stores SOWs flexibly, while Socket.io provides real-time sync. Team members see changes as they happen, with cursor positions and edit indicators.
+
+## Technical Implementation
+
+The React frontend uses Redux for state management, handling complex editor state and calculator logic. Components are organized by feature—editor components, calculator components, template components—each with their own state slices.
+
+The Express backend exposes RESTful APIs for CRUD operations. Authentication uses JWT tokens, ensuring secure access. Middleware validates requests, handles errors gracefully, and logs activity for monitoring.
+
+MongoDB stores SOWs as documents with flexible schemas. This fits naturally—SOWs vary in structure, and forcing a rigid schema would be constraining. Indexes optimize queries for the template library and version history lookups.
+
+## Challenges Overcome
+
+**Real-time Sync** was complex. Initially, I used polling—the client requesting updates every few seconds. This was inefficient and laggy. Switching to WebSockets via Socket.io provided true real-time updates with minimal overhead. Learning event-driven architecture changed how I thought about client-server communication.
+
+**Calculation Accuracy** required careful handling of floating-point arithmetic. JavaScript's number type can introduce rounding errors in financial calculations. I learned to work in cents rather than dollars, multiply before dividing to maintain precision, and format for display separately from calculation.
+
+**State Management** grew complex with nested editor state, calculator state, and application state. Redux helped, but the boilerplate was heavy. I learned to use selectors effectively, normalize state shape, and leverage Redux Toolkit to reduce boilerplate.
+
+## What I Learned
+
+This was my first full-stack MERN application, and it taught me end-to-end development. I learned to think about the complete user journey—from authentication to data flow to UI interactions. Understanding both frontend and backend deepened my appreciation for API design.
+
+React's component model clicked through practice. Breaking UIs into reusable pieces, passing props effectively, and lifting state appropriately became intuitive. Hooks transformed how I structured components, making functional components powerful and concise.
+
+MongoDB's document model suited this project perfectly, but I learned when NOT to use NoSQL. Relational data with complex joins benefits from SQL. The lesson: choose the right tool for the problem, not the trendy tool.
+
+[Read the blog post](/blog/sow-editor) about building a full-stack application from scratch.

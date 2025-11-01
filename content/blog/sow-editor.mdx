@@ -1,0 +1,169 @@
+---
+title: 'What I Learned Building a Full-Stack MERN Application'
+description: 'Reflections on building an SOW Editor with the MERN stack—from MongoDB schema design to real-time collaboration with WebSockets.'
+date: '2023-09-02'
+tags: ['Learning', 'MERN', 'Full-Stack', 'React']
+published: true
+---
+
+## The Full-Stack Journey Begins
+
+I'd built frontend components and backend APIs separately, but never a complete application from database to UI. The [SOW Editor project](/projects/sow-editor) changed that—a full-stack MERN application (MongoDB, Express, React, Node.js) for creating Statements of Work with integrated pricing calculations.
+
+This project taught me that **full-stack development isn't frontend + backend—it's thinking holistically about the entire user journey**, from data model to API design to UI interactions. Every decision ripples through the stack.
+
+## MongoDB: Learning NoSQL Thinking
+
+Coming from SQL, MongoDB's document model felt foreign. No schema? No joins? How do you enforce data integrity?
+
+**The schema-less myth**: MongoDB is schema-less in implementation but not in practice. Your application expects a structure—documents should have consistent shapes. I learned to define schemas with Mongoose, getting validation and type safety while keeping MongoDB's flexibility.
+
+**Document design** required rethinking data relationships. In SQL, I'd normalize: separate tables for SOWs, line items, and templates, joined via foreign keys. In MongoDB, I embedded related data:
+
+```javascript
+{
+  sowId: "123",
+  title: "Website Redesign SOW",
+  sections: [
+    {
+      type: "scope",
+      content: "..."
+    },
+    {
+      type: "pricing",
+      lineItems: [
+        { description: "...", hours: 40, rate: 150 }
+      ]
+    }
+  ]
+}
+```
+
+Embedding made sense for SOWs—sections belong to SOWs, loaded together. But embedding has limits—deeply nested structures get unwieldy. I learned to **embed what you read together, reference what you read separately**.
+
+**Querying** was different from SQL. No joins meant structuring documents for access patterns. If I often query "SOWs created by User X," I embed user info. If I query "All line items over $1000," I'd need to structure differently or accept scanning documents.
+
+## Express: API Design Lessons
+
+Building the Express backend taught me RESTful API design practically.
+
+**Resource-oriented URLs** clicked: `/api/sows` for the collection, `/api/sows/:id` for individual SOWs. Verbs come from HTTP methods (GET, POST, PUT, DELETE), not URLs. `/api/sows/:id/delete` is wrong—use `DELETE /api/sows/:id`.
+
+**Middleware** was a revelation. Express middleware chains handle cross-cutting concerns—authentication, logging, error handling. I structured my middleware layers:
+
+1. **Request logging**: log every request for debugging
+2. **Authentication**: verify JWT tokens
+3. **Route handlers**: business logic
+4. **Error handlers**: catch exceptions, send proper responses
+
+This separation of concerns kept route handlers clean—they focus on business logic, not plumbing.
+
+**Error handling** needed thought. Initially, errors leaked implementation details: "Cannot read property 'x' of undefined." Not helpful for clients! I learned to:
+- Catch errors in async routes
+- Translate to user-friendly messages
+- Include error codes for programmatic handling
+- Log details server-side for debugging
+
+## React: State Management Complexity
+
+The frontend was React with Redux. Early on, I was excited about Redux—centralized state! But I quickly learned: **Redux adds boilerplate, only use it when needed**.
+
+**When to use Redux**: Sharing state across many components, especially unrelated parts of the tree. The CPQ calculator state needed access from multiple components—the pricing section, the summary, the export feature. Redux made sense here.
+
+**When NOT to use Redux**: Local component state, form state, UI state (modals, dropdowns). I over-used Redux initially, putting everything in the store. This created boilerplate and performance issues. I learned to keep state as local as possible—lift it only when necessary.
+
+**Redux Toolkit saved me**. Original Redux was verbose—actions, action creators, reducers, separate files. Redux Toolkit reduced boilerplate dramatically with `createSlice` and `createAsyncThunk`. What took 100 lines took 20.
+
+**React Hook Form** for form state. Controlled inputs with Redux was painful—every keystroke triggered updates through the entire stack. React Hook Form keeps form state local, validates efficiently, and integrates smoothly. This was the right tool for the job.
+
+## Real-Time Collaboration: WebSockets
+
+The coolest feature was real-time collaboration—multiple users editing simultaneously, seeing each other's changes live.
+
+**Polling first**: My naive approach was polling—client requests updates every 2 seconds. This worked but was inefficient and laggy. Polling is wasteful when nothing changes, and updates lag by up to 2 seconds.
+
+**WebSockets second**: Socket.io transformed this. WebSockets maintain persistent connections—server can push updates instantly when changes happen. Implementing this taught me event-driven architecture:
+
+```javascript
+// Server: broadcast changes
+socket.on('sow:update', (data) => {
+  socket.broadcast.to(data.sowId).emit('sow:updated', data)
+})
+
+// Client: listen for changes
+socket.on('sow:updated', (data) => {
+  updateLocalState(data)
+})
+```
+
+**Conflict resolution** got tricky. What if two users edit the same section simultaneously? I implemented last-write-wins with optimistic updates—show changes immediately, reconcile conflicts server-side. Not perfect, but good enough for this use case. Sophisticated CRDTs (Conflict-free Replicated Data Types) exist for complex scenarios.
+
+## The CPQ Calculator: Precision Matters
+
+The Configure-Price-Quote calculator taught me that **financial calculations demand precision**.
+
+**JavaScript's floating-point problem**: `0.1 + 0.2 === 0.30000000000000004`. Hilarious in isolation, disastrous in finance. I learned to work in cents (integers) rather than dollars (floats):
+
+```javascript
+// Bad
+let total = 19.99 + 19.99  // 39.980000000000004
+
+// Good
+let totalCents = 1999 + 1999  // 3998
+let totalDollars = totalCents / 100  // 39.98
+```
+
+**Calculation order matters**. `(price * quantity) * discount` gives different results than `price * (quantity * discount)` due to rounding. I learned to multiply before dividing, maintain precision, and format only for display.
+
+**Auditing** was crucial. Every price calculation needed to be traceable—how did we arrive at this number? I logged calculation steps, stored breakdowns, and made the math transparent.
+
+## Authentication and Security
+
+Implementing JWT authentication taught me security fundamentals:
+
+**Tokens vs. sessions**: JWTs are stateless—server doesn't store session data. This scales well but means you can't revoke tokens easily (they're valid until expiration). Sessions are stateful—server tracks logged-in users. I used JWTs with short expiration (15 min) plus refresh tokens.
+
+**HTTPS everywhere**. Tokens in HTTP headers are visible to network observers. HTTPS encrypts communication. I learned to enforce HTTPS in production, redirect HTTP to HTTPS, and use secure cookies.
+
+**Input validation** on server-side is mandatory. Never trust client input. Even if the frontend validates, users can bypass it. I used Joi for schema validation—validate every request body, query param, and route param.
+
+## Deployment: Production Isn't Development
+
+Deploying taught me that **production introduces concerns absent in development**.
+
+**Environment variables**: API keys, database URLs, secrets—these can't be hardcoded. I used `.env` files locally (never committed), environment variables in production.
+
+**Logging and monitoring**: `console.log` isn't enough for production. I integrated proper logging (Winston), structured logs for parsing, and monitored for errors. Knowing when things break is as important as building them.
+
+**Database connections**: Connection pooling, handling reconnections, graceful shutdown—local MongoDB is forgiving, production isn't. I learned to handle transient failures and reconnect gracefully.
+
+## What Surprised Me
+
+**Full-stack is about tradeoffs**. Every choice has consequences: document embedding vs. references affects query patterns. State management choice affects maintainability. WebSockets add complexity but enable features polling can't. There's no single "right" way—only tradeoffs appropriate for your context.
+
+**Small features have cascading complexity**. Adding "export to PDF" sounds simple—it touched every layer. Backend generates PDF (new dependency), API serves it (streaming response), frontend triggers download (blob handling), permissions check (who can export?). Vertical slices through the stack taught me to estimate honestly.
+
+**Debugging across the stack is a skill**. Is the bug in the frontend state, API endpoint, database query, or data model? I learned systematic approaches: check browser console, network tab, server logs, database state. Full-stack debugging is detective work.
+
+## Reflections on Growth
+
+This project made me a **full-stack developer** in practice, not just title. I understood the entire application lifecycle—from data model design to API contracts to UI interactions. Each layer informs the others.
+
+It taught me **MERN isn't magic**—it's four technologies working together. MongoDB stores data. Express routes requests. React renders interfaces. Node runs JavaScript. Understanding each piece and how they integrate is the skill.
+
+Most importantly, it showed that **end-to-end thinking matters**. The best backend API is useless if the frontend can't consume it well. The most beautiful UI is frustrating if the backend is slow. Holistic thinking about the user journey makes better products.
+
+## What's Next
+
+This project sparked curiosities I'm still exploring:
+
+- **TypeScript on the backend**: type safety across the stack, not just frontend
+- **GraphQL instead of REST**: clients request exactly what they need
+- **Microservices architecture**: when does splitting services make sense?
+- **Advanced React patterns**: Suspense, concurrent rendering, server components
+
+The MERN stack is one approach, not the only approach. But learning it deeply gave me transferable skills—API design, state management, database modeling, real-time systems.
+
+If you're learning full-stack development, **build something complete**. Not a tutorial, not half-finished—build, deploy, and use your own application. The integration challenges are where real learning happens.
+
+[View the project](/projects/sow-editor) to see the architecture and implementation details.

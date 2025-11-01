@@ -1,0 +1,46 @@
+---
+title: 'RAG Research Assistant'
+description: 'A Retrieval-Augmented Generation system using AWS Glue, OpenSearch, and Together AI for intelligent document search and synthesis.'
+date: '2024-01-15'
+tags: ['AWS', 'OpenSearch', 'Together AI', 'Python', 'RAG']
+featured: false
+published: true
+repo: 'https://github.com/yourusername/rag-assistant'
+thumbnail: '/images/rag-research-assistant.png'
+---
+
+## Overview
+
+The RAG Research Assistant is an enterprise-grade system that combines semantic search with large language models to help researchers navigate vast document collections. Built with AWS Glue for ETL operations, OpenSearch for vector similarity search, and Together AI for LLM inference, this system provides accurate, source-backed answers to complex research queries.
+
+## The Challenge
+
+Researchers often struggle with manually searching through thousands of documents, synthesizing information from multiple sources, and maintaining proper citations. Traditional keyword search falls short when dealing with semantic queries, and reading every relevant document is time-prohibitive.
+
+## Technical Architecture
+
+The system is built on AWS infrastructure with three main components:
+
+**Document Processing Pipeline** uses AWS Glue to extract, transform, and load documents. PDF and DOCX files are parsed while preserving structure, then broken into semantic chunks. Each chunk is embedded using specialized models and stored in OpenSearch's vector database for lightning-fast similarity search.
+
+**Search & Retrieval** leverages OpenSearch's k-NN capabilities to find the most relevant document passages. When a user asks a question, the query is embedded using the same model as the documents, ensuring semantic alignment. The top-k most similar chunks are retrieved as context.
+
+**LLM Synthesis** uses Together AI's inference endpoints to generate comprehensive answers. The retrieved context is assembled into a prompt that instructs the model to synthesize information while maintaining accuracy and providing citations. The response includes direct references to source documents.
+
+## Key Features
+
+- **Semantic Understanding**: Goes beyond keyword matching to understand query intent
+- **Source Attribution**: Every answer includes citations with page numbers and document references
+- **Scalable Architecture**: Handles document collections exceeding 100,000 files
+- **Cost-Efficient**: AWS Glue runs on-demand; OpenSearch scales elastically
+- **Privacy-First**: All data remains within your AWS infrastructure
+
+## What I Learned
+
+This project deepened my understanding of RAG architectures and production ML systems. Working with AWS Glue taught me how to design robust ETL pipelines that handle diverse document formats gracefully. I learned the importance of chunk size and overlap for maintaining semantic coherence—too small and you lose context, too large and retrieval precision suffers.
+
+Optimizing OpenSearch for vector similarity search was fascinating. I experimented with different index settings, learned about HNSW algorithms, and discovered how filtering can dramatically improve relevance. The interplay between recall and latency became a constant optimization target.
+
+Integrating Together AI's models showed me the value of managed inference. Rather than maintaining GPU infrastructure, I could focus on prompt engineering and evaluation. This project reinforced that production AI is 20% model selection and 80% data quality, chunking strategy, and prompt design.
+
+[Read the blog post](/blog/rag-research-assistant) about building this system.

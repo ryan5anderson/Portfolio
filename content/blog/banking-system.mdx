@@ -1,0 +1,149 @@
+---
+title: 'What I Learned Building a Banking System with TDD'
+description: 'My journey learning test-driven development and object-oriented design through building a banking system from scratch.'
+date: '2023-06-18'
+tags: ['Learning', 'TDD', 'JavaScript', 'Software Architecture']
+published: true
+---
+
+## The Challenge
+
+I gave myself a deceptively simple challenge: build a [banking system](/projects/banking-system) using test-driven development and object-oriented principles. No frameworks, no shortcuts—just JavaScript, tests, and fundamental software engineering.
+
+It turned out to be one of the most educational projects I've ever built. Not because banking logic is complex (though it is), but because the constraints—TDD and OOP—forced me to confront how I actually build software versus how I *think* I build software.
+
+## Test-Driven Development: The Red-Green-Refactor Cycle
+
+TDD sounded simple in theory: write a failing test (red), make it pass (green), refactor for clarity. In practice, it felt backward and uncomfortable at first.
+
+**Writing tests first felt unnatural**. How do I test code that doesn't exist? What should the interface look like? What edge cases matter? These questions, while frustrating, were *exactly what I needed to answer* before writing implementation code.
+
+My first test was laughably simple:
+```javascript
+test('creates an account with zero balance', () => {
+  const account = new Account()
+  expect(account.getBalance()).toBe(0)
+})
+```
+
+This test failed because `Account` didn't exist. So I wrote the minimal code to pass:
+```javascript
+class Account {
+  constructor() {
+    this.balance = 0
+  }
+  getBalance() {
+    return this.balance
+  }
+}
+```
+
+Test passed. Now refactor if needed. In this case, nothing to refactor—the code was simple and clear.
+
+**The rhythm clicked after a few cycles**. Red-green-refactor became natural. I learned to write *small* tests—test one behavior at a time. This kept failures manageable. When a test failed, I knew exactly why—the new thing I just tested.
+
+## Designing Through Tests
+
+TDD *designed* my code. Tests specified behavior, and implementation followed. This inverted my usual process—normally I'd sketch classes, write code, then maybe test. TDD said: specify behavior first.
+
+**Example: Deposits**. I wrote:
+```javascript
+test('deposits increase balance', () => {
+  const account = new Account()
+  account.deposit(100)
+  expect(account.getBalance()).toBe(100)
+})
+```
+
+Failing test. I implemented `deposit()`:
+```javascript
+deposit(amount) {
+  this.balance += amount
+}
+```
+
+Passing test. But wait—what about invalid deposits?
+```javascript
+test('rejects negative deposits', () => {
+  const account = new Account()
+  expect(() => account.deposit(-50)).toThrow()
+})
+```
+
+This forced me to add validation. Tests specified edge cases, and implementation handled them. The tests became **executable specifications**.
+
+## Object-Oriented Design Discoveries
+
+I thought I understood OOP—classes, inheritance, encapsulation. Building this system taught me I understood syntax, not *design*.
+
+**Encapsulation clicked**. The `balance` field should be private—external code shouldn't modify it directly. Methods like `deposit()` and `withdraw()` control changes, enforcing business rules. This prevents invalid states—balance can't be negative unless overdrafts are explicitly allowed.
+
+**Single Responsibility Principle** became concrete. Initially, my `Account` class handled everything: balance, transactions, validation, statement generation. It grew unwieldy. I extracted responsibilities:
+- `Account` manages balance
+- `Transaction` represents individual operations
+- `TransactionHistory` stores and retrieves transactions
+- `StatementGenerator` formats output
+
+Each class does one thing well. Changes are localized. The design breathes.
+
+**Composition over inheritance** emerged naturally. I needed different account types: checking, savings, credit. My first instinct: inheritance! `CheckingAccount extends Account`. But requirements diverged quickly—checking accounts have overdrafts, savings have interest, credit accounts work differently.
+
+Inheritance became awkward. I switched to composition—accounts *have* behavior objects (overdraft policies, interest calculators). This flexibility was liberating. Mix and match behaviors without inheritance gymnastics.
+
+## The Refactoring Confidence
+
+TDD's killer feature? **Fearless refactoring**. With comprehensive tests, I could restructure code confidently. If tests passed, behavior was preserved. If tests failed, I broke something—fix it before moving on.
+
+I refactored the transaction system three times:
+1. Array of objects
+2. Linked list (for learning—overkill for this use case)
+3. Back to array with better encapsulation
+
+Each refactoring took 30 minutes because tests verified correctness automatically. Without tests, I'd be terrified of breaking something subtle.
+
+## What Surprised Me
+
+**Tests as documentation**. Six months later, I revisited this codebase. The tests told me exactly how the system worked—better than comments, which go stale. Tests are executable documentation that never lies.
+
+**TDD feels slower, but isn't**. Writing tests first feels like overhead—"I could just write the code!" But debugging later takes longer. Finding bugs through tests during development is infinitely cheaper than debugging production issues. TDD front-loads work but reduces total effort.
+
+**Edge cases reveal design flaws**. When testing edge cases felt awkward, the design was awkward. Tests like "withdraw more than balance" exposed questions: throw exception? Return failure indicator? How does the UI handle this? Good design makes edge cases straightforward to test.
+
+## Lessons That Transfer
+
+**Start with behavior, not implementation**. Before writing code, clarify: what should this do? What inputs? What outputs? What edge cases? Answer these through tests, then implement.
+
+**Small tests, fast feedback**. Run tests constantly—after every small change. Fast feedback loops accelerate learning. Slow tests kill TDD momentum.
+
+**Red-green-refactor strictly**. Don't skip refactoring—technical debt accumulates fast. Green means "tests pass," not "code is good." Refactor while the context is fresh in your mind.
+
+**Test one thing**. Tests should fail for one reason. If a test fails, you know exactly what broke—the thing being tested. Multiple assertions sometimes make sense, but generally, focused tests are better.
+
+## Where I Struggled
+
+**Naming is hard**. What should I call this test? The name documents intent—bad names mislead. I learned to name tests after behavior: `deposits_increase_balance`, not `test_deposit_method`. Good names clarify, bad names confuse.
+
+**Mocking felt tricky**. When `Account` depends on `TransactionHistory`, do I test with real `TransactionHistory` or a mock? I learned: use real objects for unit tests when simple (integration), use mocks when external dependencies are complex (databases, APIs).
+
+**How much to test?** Do I test trivial getters/setters? I settled on: test behavior, not implementation. If `getBalance()` just returns a field, no test needed. If it does calculations, test it.
+
+## Reflections
+
+Building this banking system with TDD and OOP taught me that **constraints breed creativity**. TDD forced me to think before coding. OOP forced me to organize thoughtfully. These constraints felt restrictive initially but liberated me ultimately.
+
+It reinforced that **fundamentals matter**. Frameworks come and go. TDD and OOP are timeless. Investing in fundamentals pays dividends across my entire career.
+
+Most importantly, it showed that **learning by doing works**. Reading about TDD is helpful. Practicing TDD is transformative. Build something, struggle through mistakes, and emerge with internalized knowledge.
+
+## What's Next
+
+This project sparked interests I'm still exploring:
+- **Design patterns**: recognizing when Observer, Factory, Strategy patterns naturally fit
+- **Functional programming**: how do these concepts map to FP paradigms?
+- **Property-based testing**: using tools like fast-check to generate test cases
+
+TDD and OOP aren't the only ways to build software, but they're powerful tools. Understanding them makes me a more versatile developer.
+
+If you're curious about TDD, build something small. A todo list, a calculator, a game. Start simple, follow red-green-refactor, and see what you learn. The struggle is the point.
+
+[View the project](/projects/banking-system) to see the complete implementation and tests.

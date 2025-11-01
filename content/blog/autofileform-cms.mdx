@@ -1,0 +1,271 @@
+---
+title: 'What I Learned Building an E-Commerce Platform with Feature-Based Architecture'
+description: 'Insights from building AutoFileForm CMS—domain-driven design, feature-based architecture, and lessons from specialized e-commerce development.'
+date: '2024-02-18'
+tags: ['Learning', 'Architecture', 'Next.js', 'E-commerce']
+published: true
+---
+
+## Why Another E-Commerce Platform?
+
+Generic e-commerce platforms handle books and t-shirts well. But automotive parts? They struggle. Parts vary by vehicle year, make, and model. Fitment data is complex. Pricing rules multiply—dealer tiers, quantity discounts, seasonal promotions. Inventory spans multiple warehouses.
+
+I built [AutoFileForm CMS](/projects/autofileform-cms) to explore: **what does e-commerce look like when designed for a specific domain?** This project taught me about feature-based architecture, domain-driven design, and the power of specialization.
+
+## Feature-Based Architecture: The Paradigm Shift
+
+Most tutorials organize code by technical layer:
+```
+/components
+/hooks
+/utils
+/pages
+```
+
+This works for small apps but breaks down with scale. Want to understand the "orders" feature? Grep through components, hooks, and utils. Files related to one feature scatter across folders.
+
+**Feature-based organization** flips this:
+```
+/features
+  /products
+    /components
+    /hooks
+    /actions
+    /types
+  /orders
+    /components
+    /hooks
+    /actions
+    /types
+```
+
+Everything for "products" lives in `/features/products`. Everything for "orders" lives in `/features/orders`. **Colocation makes code discoverable**.
+
+### Why This Clicked
+
+Working on the pricing engine, I needed components, server actions, database queries, types, and validation—all related to pricing. In a traditional structure, I'd jump between folders constantly. In feature-based organization, everything was in `/features/pricing`. Opening one folder showed me the entire feature.
+
+**Cognitive load dropped**. I could hold the entire feature in my head. New developers joining the project understood features quickly. "Working on inventory? Look in `/features/inventory`."
+
+**Changes stayed local**. Modifying the order flow touched files in `/features/orders`, not scattered across the codebase. Git diffs were cleaner—changed files clustered in one feature folder.
+
+## Domain-Driven Design in Practice
+
+DDD talks about "ubiquitous language"—code should use domain terms. For automotive e-commerce, that means:
+
+- **Vehicle**: year, make, model
+- **Fitment**: compatibility between parts and vehicles
+- **Part**: SKU, category, specifications
+- **Order**: cart, line items, fulfillment status
+- **Dealer Tier**: wholesale, retail, VIP
+
+My code uses these terms consistently. Database tables: `vehicles`, `fitments`, `parts`. API endpoints: `/api/parts`, `/api/fitments`. React components: `<VehicleSelector>`, `<FitmentGuide>`.
+
+This wasn't just naming—it reflected how the business thinks. When stakeholders said "fitment data," developers knew exactly what that meant in code. **Shared language bridged business and engineering**.
+
+### Modeling Complex Domains
+
+Automotive fitment is deceptively complex:
+- A part fits multiple vehicles
+- A vehicle uses multiple parts
+- Compatibility has nuances (e.g., "fits 2015-2018 Civic EX, not LX")
+
+My first attempt naively modeled this:
+```typescript
+interface Part {
+  id: string
+  name: string
+  vehicles: Vehicle[]  // Doesn't scale!
+}
+```
+
+This exploded for popular parts (brake pads fit hundreds of vehicles). I learned to model relationships explicitly:
+
+```typescript
+interface Fitment {
+  partId: string
+  vehicleId: string
+  notes?: string  // "Requires modification", etc.
+}
+```
+
+Fitment became first-class. Queries like "parts for 2015 Honda Civic" joined `parts` and `fitments`. This normalized structure handled complexity elegantly.
+
+**The lesson: complex domains need explicit relationships**. Don't hide complexity in arrays or nested objects—make it explicit in your model.
+
+## Pricing Engine: Business Logic Complexity
+
+The pricing engine taught me that **business logic is often more complex than technology**.
+
+Requirements:
+- Base price per part
+- Quantity discounts (buy 10, get 10% off)
+- Dealer tier pricing (wholesale vs. retail)
+- Promotional pricing (seasonal sales)
+- Bundle discounts (buy brakes + rotors, save 15%)
+- Exclusions (some rules don't stack)
+
+My first attempt: nested if-statements. Quickly became unmaintainable.
+
+I refactored to a **rule-based system**:
+```typescript
+interface PricingRule {
+  id: string
+  priority: number
+  condition: (context: PricingContext) => boolean
+  calculate: (basePrice: number, context: PricingContext) => number
+}
+```
+
+Each pricing rule checked conditions and calculated adjustments. Rules ran in priority order. The engine evaluated all applicable rules and applied the best price (or stacked them if allowed).
+
+This made pricing logic:
+- **Testable**: Each rule tested independently
+- **Extensible**: Add new rules without modifying engine
+- **Auditable**: Log which rules applied to each price
+- **Configurable**: Rules stored in database, modifiable by admins
+
+**The lesson: complex business logic needs structure**. Strategy pattern, rules engines, or state machines beat nested conditionals.
+
+## Real-Time Inventory: Eventual Consistency
+
+Inventory management taught me about distributed systems challenges, even in "simple" apps.
+
+**The problem**: Two customers buy the last item simultaneously. Both shouldn't succeed. How to prevent overselling?
+
+**Naive approach**: Check inventory, then decrement.
+```typescript
+const stock = await getStock(itemId)
+if (stock > 0) {
+  await decrementStock(itemId)  // Race condition!
+}
+```
+
+Race condition: Both checks happen before decrements. Both see stock = 1. Both succeed. Stock goes negative.
+
+**Better approach**: Atomic operations with transactions.
+```typescript
+await db.transaction(async (tx) => {
+  const item = await tx.inventory.findUnique({
+    where: { id: itemId },
+    lock: 'forUpdate'  // Row-level lock
+  })
+  if (item.stock < quantity) throw new Error('Insufficient stock')
+  await tx.inventory.update({
+    where: { id: itemId },
+    data: { stock: item.stock - quantity }
+  })
+})
+```
+
+Row-level locking ensures one transaction completes before another starts. Database guarantees consistency.
+
+**The lesson: concurrency is subtle**. Atomic operations, locks, and transactions prevent race conditions. Test concurrent scenarios explicitly.
+
+## Next.js App Router: Server Components Everywhere
+
+Next.js App Router changed how I structure React apps. Server Components fetched data, Client Components handled interactivity.
+
+**Initially, I fought this**. I wanted to fetch client-side (familiar). But Server Components eliminated waterfalls:
+
+**Before** (Client Components):
+```typescript
+function ProductPage() {
+  const [product, setProduct] = useState(null)
+  const [fitment, setFitment] = useState(null)
+
+  useEffect(() => {
+    fetch(`/api/products/${id}`).then(setProduct)
+  }, [id])
+
+  useEffect(() => {
+    if (product) {
+      fetch(`/api/fitments/${product.id}`).then(setFitment)
+    }
+  }, [product])  // Waterfall!
+}
+```
+
+**After** (Server Components):
+```typescript
+async function ProductPage({ params }) {
+  const [product, fitment] = await Promise.all([
+    getProduct(params.id),
+    getFitment(params.id)
+  ])  // Parallel, server-side
+
+  return <ProductDetail product={product} fitment={fitment} />
+}
+```
+
+Server Components fetched data in parallel, server-side. Faster, simpler, fewer roundtrips.
+
+**The lesson: fight your instincts when paradigms shift**. Server Components felt wrong initially but delivered better performance and DX.
+
+## TypeScript: End-to-End Type Safety
+
+TypeScript across the stack (Next.js supports it natively) caught bugs before runtime.
+
+**Shared types** between client and server prevented mismatches:
+```typescript
+// shared/types.ts
+export interface Product {
+  id: string
+  name: string
+  price: number
+  // ...
+}
+
+// Server action
+export async function getProduct(id: string): Promise<Product> { ... }
+
+// Client component
+function ProductCard({ product }: { product: Product }) { ... }
+```
+
+If I changed `Product`, TypeScript flagged everywhere it was used. Refactoring was safe.
+
+**Zod validation** ensured runtime data matched types:
+```typescript
+const ProductSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.number().positive(),
+})
+
+export type Product = z.infer<typeof ProductSchema>
+```
+
+This caught API responses, form inputs, and database results that didn't match expectations.
+
+**The lesson: types are documentation and tests**. TypeScript catches bugs during development. Zod catches bugs at runtime. Together, they're powerful.
+
+## What Surprised Me Most
+
+**Feature-based architecture scales non-linearly**. Early on, it felt like overkill—"why not just `/components`?" But at 50+ components, the structure paid off massively. The investment upfront saved maintenance cost later.
+
+**Domain complexity exceeds technical complexity**. Understanding automotive fitment, dealer relationships, and fulfillment workflows took longer than learning Next.js or PostgreSQL. **Talk to domain experts early and often**.
+
+**Specialized beats generic**. Generic e-commerce platforms handle 80% of use cases. This specialized platform handled automotive-specific needs beautifully—fitment, dealer tiers, warehouse distribution. **Specialization is an advantage**, not a limitation.
+
+## Reflections on Growth
+
+This project taught me to **think architecturally**. It's not about individual components—it's about organizing systems for understandability, maintainability, and evolvability.
+
+It reinforced that **constraints clarify design**. Building for automotive parts, not generic products, let me make specific decisions. Specialization simplified the problem space.
+
+Most importantly, it showed that **good architecture serves people**. Feature-based organization helps developers navigate code. Ubiquitous language helps teams communicate. Type safety helps catch mistakes. Architecture isn't abstract—it's practical tools for building better software.
+
+## What's Next
+
+This project sparked ongoing interests:
+
+- **Microservices boundaries**: When does splitting features into services make sense?
+- **Event-driven architecture**: Using events to decouple features further
+- **Modulith pattern**: Monolith with modular boundaries—best of both worlds?
+
+Feature-based architecture isn't the only way, but it's powerful for complex domains. Understanding it makes me better equipped to choose the right structure for each project.
+
+If you're building something complex, consider feature-based organization. Colocate related code. Use domain language. Embrace structure that reflects your problem space. Your future self—and your team—will thank you.
+
+[View the project](/projects/autofileform-cms) to explore the architecture and implementation details.

@@ -1,0 +1,107 @@
+---
+title: 'What I Learned Building a RAG Research Assistant'
+description: 'Reflections on building a production RAG system with AWS Glue, OpenSearch, and Together AI—from chunking strategies to prompt engineering.'
+date: '2024-01-22'
+tags: ['Learning', 'RAG', 'AWS', 'Machine Learning']
+published: true
+---
+
+## The Spark
+
+I've always been fascinated by how we find information. Search engines are incredible, but they return links—you still need to read everything and synthesize. What if the computer could read for you and summarize across sources? That question led me to build a [RAG Research Assistant](/projects/rag-research-assistant).
+
+RAG (Retrieval-Augmented Generation) combines search with language models. Find relevant passages, then use an LLM to generate answers grounded in those passages. Simple concept, complex execution. Building this system taught me lessons that transformed how I think about AI applications.
+
+## The Chunking Problem
+
+My first naive approach was simple: split documents every 1000 characters, embed each chunk, done. It worked... poorly. Questions about concepts spanning multiple chunks failed. The answer was "on page 5" and "on page 7" but split across chunks, so neither was retrieved.
+
+I learned that chunking is an art, not a science. You need **semantic boundaries**—split at paragraphs or sections, not arbitrary character counts. You need **overlap**—the last sentence of one chunk repeats as the first sentence of the next, maintaining context. You need **metadata**—track source document, page number, section title with each chunk.
+
+Experimenting with chunk sizes was enlightening. Too small (200 chars) and chunks lack context—retrieval finds fragments without meaning. Too large (2000 chars) and retrieval precision suffers—you retrieve a huge block where the answer is buried. The sweet spot? Around 500-800 characters with 100-character overlap. But this varies by domain—legal documents differ from scientific papers.
+
+The breakthrough came from realizing **chunking is domain-specific**. I couldn't have one universal chunking strategy. Scientific papers chunk well by abstract/introduction/methods/results. Legal documents chunk by section numbers. Books chunk by chapters and paragraphs. The system needed configurable chunking strategies.
+
+## Vector Search Deep Dive
+
+OpenSearch's k-NN search seemed magical at first—just throw in vectors and relevant results appear! Reality was messier. I learned that **index configuration matters enormously**.
+
+The HNSW algorithm (Hierarchical Navigable Small World) powers fast approximate nearest neighbor search. But it has parameters: `m` controls graph connectivity, `ef_construction` controls search accuracy during indexing. Default values worked okay. Tuned values worked *way* better. I spent days experimenting, eventually doubling search precision.
+
+**Hybrid search** was a revelation. Pure vector search sometimes misses exact term matches. If the query is "AWS Lambda cold start optimization," vector search might miss documents with that exact phrase if the embeddings are slightly off. Combining vector similarity with traditional BM25 keyword search catches both semantic and lexical matches. The combination outperformed either alone.
+
+**Filtering** presented interesting challenges. "Find documents about machine learning *authored by John Smith*" requires retrieval plus filtering. Do you filter then retrieve, or retrieve then filter? The answer: it depends on cardinality. If John has 10,000 documents, filter first. If he has 10, retrieve then filter. OpenSearch's filtered queries handle this elegantly, but understanding the internals helped me optimize.
+
+## Prompt Engineering as Software Engineering
+
+I initially treated prompts as afterthoughts—casual instructions to the LLM. This was naive. **Prompts are code**, and they deserve the same care as any code. They need versioning, testing, and iteration.
+
+My first prompt was: "Answer this question based on the context provided." Results were inconsistent—sometimes accurate, sometimes hallucinated, sometimes refused to answer when it should. I learned to be *specific*:
+
+```
+You are a research assistant. Below is a question and relevant passages from documents.
+
+Rules:
+- Answer ONLY using information in the passages
+- If the answer isn't in the passages, say "I don't have enough information"
+- Cite source documents in your answer [Doc 1] [Doc 2]
+- Be concise but complete
+- Maintain objectivity
+
+Question: {question}
+
+Passages:
+{context}
+
+Answer:
+```
+
+This structured prompt improved accuracy from ~70% to ~92%. The explicit rules reduced hallucination. The format guided the model toward consistent responses.
+
+**Few-shot examples** helped even more. Showing the model 2-3 examples of good answers taught it the desired style. The model learned to cite properly, answer at the right detail level, and gracefully decline when uncertain.
+
+## The Cost-Accuracy Tradeoff
+
+Running LLM inference isn't free. Each question costs a few cents, but at scale, costs mount. I learned to **optimize the context window**. Retrieving 20 passages and sending them all to the LLM is wasteful—maybe 5 passages would suffice.
+
+I implemented **reranking**: retrieve 20 candidates with vector search (cheap), then rerank the top 5 with a cross-encoder model (more expensive but accurate). Send only the top 5 to the LLM. This cut costs by 60% while maintaining quality.
+
+**Caching** helped too. Common queries like "What is machine learning?" got cached responses. Before LLM inference, check the cache. Hit rate was surprisingly high—about 30% of queries hit the cache, saving considerable cost.
+
+Together AI's inference was cost-effective compared to OpenAI, but I learned to be thoughtful. Test with smaller models (Llama 2 7B) before scaling to larger ones (70B). Often, smaller models suffice with good prompting.
+
+## What Surprised Me
+
+**Embeddings matter more than the LLM**. I obsessed over LLM choice but found that embedding quality drove most of the performance. Switching from a generic sentence transformer to a domain-specific embedding model (fine-tuned on academic papers) improved retrieval dramatically.
+
+**Evaluation is hard**. How do you measure RAG quality? Answer accuracy depends on ground truth—did the system retrieve the right passages? Did the LLM synthesize them correctly? I built an eval set with 100 questions and answers, then measured retrieval recall and answer accuracy. But edge cases always surprised me. Evaluation is ongoing, not a one-time checkpoint.
+
+**Users want citations**. I thought people would care about answer quality. They do, but they *really* care about provenance. Every answer needs source citations with page numbers. Trust requires transparency—show your work.
+
+## Technical Growth
+
+This project leveled up my cloud engineering. AWS Glue taught me ETL patterns—idempotent jobs, checkpointing, error handling. I learned to design pipelines that handle failures gracefully, retry intelligently, and scale elastically.
+
+OpenSearch expanded my database knowledge beyond SQL. Understanding inverted indices, vector indices, and query optimization in a document store was fascinating. The concepts transfer—many NoSQL databases share similar patterns.
+
+Working with LLMs taught me a new kind of programming. **Prompt engineering is debugging without determinism**. Change a word, get different output. It's frustrating but also creatively engaging. I learned to iterate, test systematically, and embrace probabilistic outcomes.
+
+## What's Next
+
+I'm excited about multimodal RAG—ingesting images, tables, and charts from documents. Current text-only extraction misses visual information. Models like GPT-4V can interpret images, opening new possibilities.
+
+Agentic RAG is another frontier—systems that iteratively refine searches, check facts, and combine information across queries. Rather than one-shot retrieval, agents can use tools, search multiple times, and reason about what they find.
+
+Real-time updates interest me too—currently, documents are indexed in batch. Can we incrementally update the index as new documents arrive? Stream processing with AWS Kinesis plus OpenSearch's refresh APIs might enable this.
+
+## Closing Thoughts
+
+Building a RAG system taught me that **AI applications are 20% model and 80% everything else**. Data quality, chunking strategy, retrieval precision, prompt engineering, caching, monitoring—these matter more than model choice.
+
+It reinforced that **iteration beats perfection**. My first version was embarrassingly bad. But each iteration improved—better chunking, hybrid search, reranking, prompt tuning. Incremental progress compounds.
+
+Most importantly, it showed that **AI is a tool, not magic**. Understanding the underlying mechanisms—embeddings, vector search, attention models—demystifies the technology. With understanding comes the ability to debug, optimize, and innovate.
+
+If you're building with RAG, start simple. Get something working end-to-end, then optimize. Measure everything. Talk to users. Iterate relentlessly. The journey is as valuable as the destination.
+
+[View the project](/projects/rag-research-assistant) to see the complete implementation.
